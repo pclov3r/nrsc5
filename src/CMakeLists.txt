@@ -67,7 +67,7 @@ set (
 )
 
 add_library (
-    nrsc5 SHARED
+    nrsc5
     ${LIBRARY_FILES}
 )
 target_link_libraries (
@@ -81,18 +81,6 @@ set_target_properties(nrsc5 PROPERTIES PUBLIC_HEADER "../include/nrsc5.h")
 set_target_properties(nrsc5 PROPERTIES LINK_FLAGS "${STATIC_LINKER_FLAGS} ${EXPORTS_LINKER_FLAGS}")
 target_compile_definitions(nrsc5 PUBLIC "-DNRSC5_EXPORTS=1")
 
-add_library (
-    nrsc5_static
-    ${LIBRARY_FILES}
-)
-target_link_libraries (
-    nrsc5_static
-    ${LibraryDependencies}
-)
-if (BUILTIN_LIBRARIES)
-    add_dependencies(nrsc5_static ${BUILTIN_LIBRARIES})
-endif ()
-
 if (BUILD_CLI)
     add_executable (
         app
@@ -103,7 +91,7 @@ if (BUILD_CLI)
     set_target_properties(app PROPERTIES LINK_FLAGS "${STATIC_LINKER_FLAGS}")
     target_link_libraries (
         app
-        nrsc5_static
+        nrsc5
         ${AO_LIBRARIES}
         ${THREAD_LIBRARY}
         ${SOCKET_LIBRARY}
@@ -115,7 +103,7 @@ if (BUILD_CLI)
 endif ()
 
 install (
-    TARGETS nrsc5 nrsc5_static
+    TARGETS nrsc5
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib

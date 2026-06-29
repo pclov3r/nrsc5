@@ -16,7 +16,6 @@ fi
 mkdir -p nrsc5/build
 cd nrsc5/build
 cmake -G "MSYS Makefiles" \
-    -D USE_STATIC=ON \
     -D USE_SYSTEM_LIBUSB=OFF \
     -D USE_SYSTEM_RTLSDR=OFF \
     -D USE_SYSTEM_LIBAO=OFF \

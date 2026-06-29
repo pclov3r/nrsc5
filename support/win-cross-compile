@@ -27,7 +27,6 @@ cmake \
     -D CMAKE_SYSTEM_NAME=Windows \
     -D CMAKE_C_COMPILER=${host}-gcc \
     -D CMAKE_INSTALL_PREFIX=${prefix} \
-    -D USE_STATIC=ON \
     -D USE_SYSTEM_LIBUSB=OFF \
     -D USE_SYSTEM_RTLSDR=OFF \
     -D USE_SYSTEM_LIBAO=OFF \

@@ -11,7 +11,7 @@ execute_process (COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE HOST_T
 option (USE_NEON "Use NEON instructions")
 option (USE_SSE "Use SSE3 instructions")
 option (USE_FAAD2 "AAC decoding with FAAD2" ON)
-option (USE_STATIC "Link with static libraries")
+option (USE_STATIC "Build/link libraries statically" ON)
 option (USE_SYSTEM_FFTW "Use system provided fftw" ON)
 option (USE_SYSTEM_RTLSDR "Use system provided rtl-sdr" ON)
 option (USE_SYSTEM_LIBUSB "Use system provided libusb" ON)
@@ -19,6 +19,33 @@ option (USE_SYSTEM_LIBAO "Use system provided libao" ON)
 option (INSTALLED_FAAD_IS_PATCHED "Use patched system-provided FAAD2" OFF)
 option (BUILD_DOC "Build API documentation" OFF)
 option (BUILD_CLI "Build nrsc5 executable" ON)
+
+if (USE_STATIC)
+    set(BUILD_SHARED_LIBS OFF)
+else()
+    set(BUILD_SHARED_LIBS ON)
+endif()
+
+if (BUILD_SHARED_LIBS)
+    set(LIBRARY_BUILD_TYPE "--disable-static" "--enable-shared")
+    if (WIN32 OR MINGW)
+        # -lksuser is necessary when linking Libao dynamically for Windows
+        set(LIBAO_EXTRA_CONFIGURE_ARGS "LIBS=-lksuser")
+        set(IMPORTED_LIBRARY_SUFFIX "${CMAKE_IMPORT_LIBRARY_SUFFIX}")
+    else()
+        set(LIBAO_EXTRA_CONFIGURE_ARGS "")
+        set(IMPORTED_LIBRARY_SUFFIX "${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    endif()
+else()
+    set(LIBRARY_BUILD_TYPE "--enable-static" "--disable-shared")
+    set(LIBAO_EXTRA_CONFIGURE_ARGS "")
+    set(IMPORTED_LIBRARY_SUFFIX "${CMAKE_STATIC_LIBRARY_SUFFIX}")
+endif()
+
+set(RTLSDR_LIB_NAME "librtlsdr${IMPORTED_LIBRARY_SUFFIX}")
+if(NOT BUILD_SHARED_LIBS)
+    set(RTLSDR_LIB_NAME "librtlsdr_static${IMPORTED_LIBRARY_SUFFIX}")
+endif()
 
 set (FAAD2_CMAKE_ARGS "" CACHE STRING "Extra arguments for FAAD2 cmake command")
 set (LIBRARY_DEBUG_LEVEL "5" CACHE STRING "Debug logging level for libnrsc5: 1=debug, 2=info, 3=warn, 4=error, 5=none")
@@ -110,11 +137,11 @@ if (NOT USE_SYSTEM_FFTW)
         URL_HASH SHA256=56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467
         PREFIX ${FFTW_PREFIX}
 
-        CONFIGURE_COMMAND ${FFTW_PREFIX}/src/fftw_external/configure ${HOST_TRIPLE_ARG} --prefix=${FFTW_PREFIX} --enable-float --enable-static --disable-shared --enable-sse2 --enable-avx --enable-avx2 --with-our-malloc
+        CONFIGURE_COMMAND ${FFTW_PREFIX}/src/fftw_external/configure ${HOST_TRIPLE_ARG} --prefix=${FFTW_PREFIX} --enable-float ${LIBRARY_BUILD_TYPE} --enable-sse2 --enable-avx --enable-avx2 --with-our-malloc
     )
 
-    add_library (fftw3f STATIC IMPORTED)
-    set_property (TARGET fftw3f PROPERTY IMPORTED_LOCATION "${FFTW_PREFIX}/lib/libfftw3f.a")
+    add_library (fftw3f UNKNOWN IMPORTED)
+    set_property (TARGET fftw3f PROPERTY IMPORTED_LOCATION "${FFTW_PREFIX}/lib/libfftw3f${IMPORTED_LIBRARY_SUFFIX}")
     add_dependencies (fftw3f fftw_external)
 
     set (FFTW3F_INCLUDE_DIRS "${FFTW_PREFIX}/include")
@@ -132,7 +159,7 @@ if (NOT USE_SYSTEM_LIBUSB)
         PREFIX ${LIBUSB_PREFIX}
 
         UPDATE_COMMAND ""
-        CONFIGURE_COMMAND ${LIBUSB_PREFIX}/src/libusb_external/configure ${HOST_TRIPLE_ARG} --prefix=${LIBUSB_PREFIX}
+        CONFIGURE_COMMAND ${LIBUSB_PREFIX}/src/libusb_external/configure ${HOST_TRIPLE_ARG} --prefix=${LIBUSB_PREFIX} ${LIBRARY_BUILD_TYPE}
     )
     ExternalProject_Add_Step (
         libusb_external
@@ -142,8 +169,8 @@ if (NOT USE_SYSTEM_LIBUSB)
         DEPENDERS configure
         WORKING_DIRECTORY <SOURCE_DIR>
     )
-    add_library (libusb STATIC IMPORTED)
-    set_property (TARGET libusb PROPERTY IMPORTED_LOCATION "${LIBUSB_PREFIX}/lib/libusb-1.0.a")
+    add_library (libusb UNKNOWN IMPORTED)
+    set_property (TARGET libusb PROPERTY IMPORTED_LOCATION "${LIBUSB_PREFIX}/lib/libusb-1.0${IMPORTED_LIBRARY_SUFFIX}")
 
     set (LIBUSB_BUILTIN libusb_external)
     set (LIBUSB_LIBRARIES libusb)
@@ -167,6 +194,7 @@ if (NOT USE_SYSTEM_RTLSDR)
             -DCMAKE_INSTALL_PREFIX:STRING=${RTLSDR_PREFIX}
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             -DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}
+            -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
             ${RTLSDR_CMAKE_ARGS}
     )
 
@@ -174,8 +202,8 @@ if (NOT USE_SYSTEM_RTLSDR)
         add_dependencies (rtlsdr_external ${LIBUSB_BUILTIN})
     endif ()
 
-    add_library (rtlsdr STATIC IMPORTED)
-    set_property (TARGET rtlsdr PROPERTY IMPORTED_LOCATION "${RTLSDR_PREFIX}/lib/librtlsdr_static.a")
+    add_library (rtlsdr UNKNOWN IMPORTED)
+    set_property (TARGET rtlsdr PROPERTY IMPORTED_LOCATION "${RTLSDR_PREFIX}/lib/${RTLSDR_LIB_NAME}")
     add_dependencies (rtlsdr rtlsdr_external)
 
     set (RTL_SDR_INCLUDE_DIRS "${RTLSDR_PREFIX}/include")
@@ -197,7 +225,7 @@ if (BUILD_CLI AND NOT USE_SYSTEM_LIBAO)
         PREFIX ${LIBAO_PREFIX}
 
         UPDATE_COMMAND ""
-        CONFIGURE_COMMAND ${LIBAO_PREFIX}/src/libao_external/configure ${HOST_TRIPLE_ARG} --prefix=${LIBAO_PREFIX} --enable-static --disable-shared --disable-pulse
+        CONFIGURE_COMMAND ${LIBAO_PREFIX}/src/libao_external/configure ${HOST_TRIPLE_ARG} --prefix=${LIBAO_PREFIX} ${LIBRARY_BUILD_TYPE} --disable-pulse ${LIBAO_EXTRA_CONFIGURE_ARGS}
     )
     ExternalProject_Add_Step (
         libao_external
@@ -208,8 +236,8 @@ if (BUILD_CLI AND NOT USE_SYSTEM_LIBAO)
         WORKING_DIRECTORY <SOURCE_DIR>
     )
 
-    add_library (libao STATIC IMPORTED)
-    set_property (TARGET libao PROPERTY IMPORTED_LOCATION "${LIBAO_PREFIX}/lib/libao.a")
+    add_library (libao UNKNOWN IMPORTED)
+    set_property (TARGET libao PROPERTY IMPORTED_LOCATION "${LIBAO_PREFIX}/lib/libao${IMPORTED_LIBRARY_SUFFIX}")
     add_dependencies (libao libao_external)
 
     set (AO_INCLUDE_DIRS "${LIBAO_PREFIX}/include")
@@ -226,7 +254,7 @@ if (USE_FAAD2)
         find_path(FAAD2_INCLUDE_DIRS neaacdec.h
                 HINTS ${PC_FAAD2_INCLUDEDIR} ${PC_FAAD2_INCLUDE_DIRS})
 
-        # use the libfaad_hdc.a, not libfaad as specified in pkg-config file
+        # use libfaad_hdc, not libfaad as specified in pkg-config file
         find_library(FAAD2_LIBRARIES NAMES faad_hdc
                 HINTS ${PC_FAAD2_LIBDIR} ${PC_FAAD2_LIBRARY_DIRS} )
 
@@ -259,7 +287,7 @@ if (USE_FAAD2)
         )
 
         add_library (faad2 STATIC IMPORTED)
-        set_property (TARGET faad2 PROPERTY IMPORTED_LOCATION "${FAAD2_PREFIX}/lib/libfaad_hdc.a")
+        set_property (TARGET faad2 PROPERTY IMPORTED_LOCATION "${FAAD2_PREFIX}/lib/libfaad_hdc${CMAKE_STATIC_LIBRARY_SUFFIX}")
         add_dependencies (faad2 faad2_external)
 
         set (FAAD2_INCLUDE_DIRS "${FAAD2_PREFIX}/include")

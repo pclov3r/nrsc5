@@ -18,6 +18,7 @@ Available build options:
 
     -DUSE_NEON=ON            Use NEON instructions. [ARM, default=OFF]
     -DUSE_SSE=ON             Use SSSE3 instructions. [x86, default=OFF]
+    -DUSE_STATIC=ON          Build/link libs statically. Set to OFF to build dynamically (required for Python API/CLI). [default=ON]
     -DUSE_FAAD2=ON           AAC decoding with FAAD2. [default=ON]
     -DLIBRARY_DEBUG_LEVEL=1  Debug logging level for libnrsc5. [default=5]
     -DBUILD_DOC=ON           Generate html API documentation [default=OFF]
@@ -69,10 +70,9 @@ You can test your installation using the included sample file:
 
 If the sample file does not work, make sure you followed all of the instructions. If it still doesn't work, file an issue with the error message. Please put "[Windows]" in the title of the issue.
 
-Once everything is built, you can run nrsc5 independently of MSYS2. Copy the following files from your MSYS2 mingw64 (or mingw32) directory (e.g. C:\\msys64\\mingw64\\bin):
+Once everything is built, you can run nrsc5 independently of MSYS2. Copy the `nrsc5.exe` executable file from your MSYS2 mingw64 (or mingw32) directory (e.g. C:\msys64\mingw64\bin):
 
-* libnrsc5.dll
-* nrsc5.exe
+(Note: If you configured CMake with `-DUSE_STATIC=OFF`, you must also copy `libnrsc5.dll` and the external dependency DLLs such as `libfftw3f-3.dll`, `librtlsdr.dll`, etc. into the same folder).
 
 ### Cross-compiling for Windows from Ubuntu / Debian
 
@@ -81,7 +81,9 @@ Once everything is built, you can run nrsc5 independently of MSYS2. Copy the fol
     cd nrsc5
     support/win-cross-compile 64 --cmake-args="-DUSE_SSE=ON" -j4
 
-Replace `64` with `32` if you want a 32-bit build. Once the build is complete, copy `*.dll` and `nrsc5.exe` from the `build-win64/bin` (or `build-win32/bin`) folder to your Windows machine.
+Replace `64` with `32` if you want a 32-bit build. Once the build is complete, copy the `nrsc5.exe` executable from the `build-win64/bin` (or `build-win32/bin`) folder to your Windows machine.
+
+(Note: If you configured CMake with `-DUSE_STATIC=OFF`, you must also copy `libnrsc5.dll` and the external dependency DLLs such as `libfftw3f-3.dll`, `librtlsdr.dll`, etc. into the same folder).
 
 ### Cross-compiling for Windows from macOS
 
@@ -90,7 +92,9 @@ Replace `64` with `32` if you want a 32-bit build. Once the build is complete, c
     cd nrsc5
     support/win-cross-compile 64 --cmake-args="-DUSE_SSE=ON" -j4
 
-Replace `64` with `32` if you want a 32-bit build. Once the build is complete, copy `*.dll` and `nrsc5.exe` from the `build-win64/bin` (or `build-win32/bin`) folder to your Windows machine.
+Replace `64` with `32` if you want a 32-bit build. Once the build is complete, copy the `nrsc5.exe` executable from the `build-win64/bin` (or `build-win32/bin`) folder to your Windows machine.
+
+(Note: If you configured CMake with `-DUSE_STATIC=OFF`, you must also copy `libnrsc5.dll` and the external dependency DLLs such as `libfftw3f-3.dll`, `librtlsdr.dll`, etc. into the same folder).
 
 ## Usage
 
@@ -161,4 +165,4 @@ If you get errors trying to access your RTL-SDR device, then you may need to use
 
 If you would like to build an application that makes use of nrsc5's functionality, you can use the [C API](include/nrsc5.h) ([documentation](https://theori-io.github.io/nrsc5/c-api/)) or [Python API](support/nrsc5.py). The [`nrsc5` command-line application](src/main.c) is built on top of the C API, and an equivalent [Python command-line application](support/cli.py) is built on top of the Python API. These applications serve as examples of how to use the API.
 
-Note: When using the Python API or the Python command-line application on Windows, place `libnrsc5.dll` in the same folder as `nrsc5.py`.
+Note: When using the Python API or the Python command-line application, you must configure CMake with `-DUSE_STATIC=OFF` to compile the shared dynamic nrsc5 library. On Windows, place `libnrsc5.dll` (and all other dependency `.dll` files) in the same folder as `nrsc5.py`.
